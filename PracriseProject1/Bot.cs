@@ -37,6 +37,11 @@ namespace PracriseProject1
         private Coordinates coordinates { get; set; }
 
         /// <summary>
+        /// Флажок команди weather info.
+        /// </summary>
+        private static bool weatherInfoFlag = false;
+
+        /// <summary>
         /// Налаштування отримання оновлень.
         /// </summary>
         private ReceiverOptions receiverOptions = new ReceiverOptions
@@ -49,7 +54,7 @@ namespace PracriseProject1
         /// </summary>
         private ReplyKeyboardMarkup keyboard = new(new []
         {
-            new KeyboardButton[] { "Weather info", "Exit"}
+            new KeyboardButton[] { "Weather info", "Initial menu"}
         })
         {
             ResizeKeyboard = true
@@ -136,27 +141,27 @@ namespace PracriseProject1
                 Console.WriteLine($"Bot sent keyboard for user in chat: {chatId}");
                 return;
             }
-            
-            if(message.Text == "Exit")// TODO: доробити, переробити
+
+            if (message.Text == "Initial menu")
             {
-                Console.WriteLine($"Bot has finished its work");
+                Console.WriteLine($"Bot has restarted its work");
                 await botClient.SendTextMessageAsync(chatId: chatId,
                                      text: "Choose command: /keyboard", //TODO: Доробити обробку команди inline
                                      cancellationToken: cts.Token);
                 Console.WriteLine($"Bot sent a command list in chat: {chatId}");
                 return;
             }
-            if (message.Text == "Weather info")
+            else if (message.Text == "Weather info")
             {
                 await botClient.SendTextMessageAsync(chatId: chatId,
                                                      text: "Please enter the name of your settlement:",
                                                      cancellationToken: cts.Token);
-
+                weatherInfoFlag = true;
                 return;
             }
-            else
+            else if (weatherInfoFlag == true && message.Text is not null)
             {
-                settlementName = message?.Text;
+                settlementName = message.Text;
 
                 try
                 {
@@ -164,8 +169,11 @@ namespace PracriseProject1
                     await botClient.SendTextMessageAsync(chatId: chatId,
                                          text: $"Lat: {coordinates.Lat}; Lng: {coordinates.Lng}",
                                          cancellationToken: cts.Token);
+                    if (coordinates.Lat == String.Empty && coordinates.Lng == String.Empty)
+                        throw new Exception("There aren't settlement with thats title");
+                    weatherInfoFlag = false;
                 }
-                catch (WebException ex)//TODO: замінити ексепшин.
+                catch (Exception ex)
                 {
                     Console.WriteLine(ex.Message);
                     await botClient.SendTextMessageAsync(chatId: chatId,
@@ -177,8 +185,16 @@ namespace PracriseProject1
                     await botClient.SendTextMessageAsync(chatId: chatId,
                                      text: "Please try again:)",
                                      cancellationToken: cts.Token);
+                    weatherInfoFlag = true;
                 }
-
+                return;
+            }
+            else
+            {
+                Console.WriteLine($"User in char {chatId} sent invalid command");
+                await botClient.SendTextMessageAsync(chatId: chatId,
+                                                     text: "Unfortunately, you entered the invalid command(",
+                                                     cancellationToken: cts.Token);
                 return;
             }
         }
@@ -211,8 +227,10 @@ namespace PracriseProject1
         /// Визначення широти і довготи н. п..
         /// </summary>
         /// <param name="settlement"></param>
-        private async Task<Task> HandleSettlementCoordinateAsync(string settlement)//TODO: Перевірку вхідних даних
+        private async Task<Task> HandleSettlementCoordinateAsync(string settlement)
         {
+            if(settlement == null)
+                throw new ArgumentNullException("The name of the settlement cannot be equal to null", nameof(settlement));
 
             string adress = $"https://maps.googleapis.com/maps/api/geocode/json?address={settlement},&key={mapsApiToken}";
             string source = String.Empty;

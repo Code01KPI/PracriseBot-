@@ -10,12 +10,12 @@ namespace PracriseProject1
         /// <summary>
         /// Широта.
         /// </summary>
-        public string Lat { get; private set; }
+        public string Lat { get; }
 
         /// <summary>
         /// Довгота.
         /// </summary>
-        public string Lng { get; private set; }
+        public string Lng { get; }
 
         /// <summary>
         /// Регулярка для пошуку широти.
