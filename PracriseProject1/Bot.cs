@@ -4,15 +4,23 @@ using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
+using System.Net;
+using System.Text;
+//using Newtonsoft.Json;
 
 namespace PracriseProject1
 {
-    internal class Bot
+    public class Bot
     {
         /// <summary>
         /// Токен.
         /// </summary>
-        private string token { get; set; } = "5567347333:AAEGUpFG-H7gpiFwZlUGfBF-IaKlyRDGcpc";
+        private string token { get; }
+
+        /// <summary>
+        /// Токен api google maps.
+        /// </summary>
+        private string mapsApiToken { get; }
 
         /// <summary>
         /// Токен відміни.
@@ -20,6 +28,13 @@ namespace PracriseProject1
         private CancellationTokenSource cts = new CancellationTokenSource();
 
         private TelegramBotClient client;
+
+        /// <summary>
+        /// Назва н. п. яка отримана від користувача.
+        /// </summary>
+        public string settlementName { get; private set; }
+
+        private Coordinates coordinates { get; set; }
 
         /// <summary>
         /// Налаштування отримання оновлень.
@@ -34,7 +49,7 @@ namespace PracriseProject1
         /// </summary>
         private ReplyKeyboardMarkup keyboard = new(new []
         {
-            new KeyboardButton[] { "Exchange rate", "Exit"}
+            new KeyboardButton[] { "Weather info", "Exit"}
         })
         {
             ResizeKeyboard = true
@@ -42,6 +57,13 @@ namespace PracriseProject1
 
         public Bot()
         {
+            using (StreamReader sr = new StreamReader("tokens.txt"))
+            {
+                string[] buffer = sr.ReadToEnd().Split('\n');
+                token = buffer[0].Trim();
+                mapsApiToken = buffer[1].Trim();
+            }
+
             client = new TelegramBotClient(token);
             Console.WriteLine("Bot has been created");
         }
@@ -105,8 +127,7 @@ namespace PracriseProject1
                 Console.WriteLine($"Bot sent a command list in chat: {chatId}");
                 return;
             }
-
-            if (message.Text == "/keyboard")
+            else if (message.Text == "/keyboard")
             {
                 await botClient.SendTextMessageAsync(chatId: chatId,
                                                      text: "Choose command please:",
@@ -115,19 +136,50 @@ namespace PracriseProject1
                 Console.WriteLine($"Bot sent keyboard for user in chat: {chatId}");
                 return;
             }
-
-            if(message.Text == "Exit")
+            
+            if(message.Text == "Exit")// TODO: доробити, переробити
             {
                 Console.WriteLine($"Bot has finished its work");
-                cts.Cancel();
+                await botClient.SendTextMessageAsync(chatId: chatId,
+                                     text: "Choose command: /keyboard", //TODO: Доробити обробку команди inline
+                                     cancellationToken: cts.Token);
+                Console.WriteLine($"Bot sent a command list in chat: {chatId}");
                 return;
             }
-            else if (message.Text == "Exchange rate")
+            if (message.Text == "Weather info")
             {
-                RateInfo rateInfoGRN = new RateInfo();
                 await botClient.SendTextMessageAsync(chatId: chatId,
-                                                     text: $"Exchange rate of the hryvnia against the dollar: {rateInfoGRN.dollarRate}",
+                                                     text: "Please enter the name of your settlement:",
                                                      cancellationToken: cts.Token);
+
+                return;
+            }
+            else
+            {
+                settlementName = message?.Text;
+
+                try
+                {
+                    await HandleSettlementCoordinateAsync(settlementName);
+                    await botClient.SendTextMessageAsync(chatId: chatId,
+                                         text: $"Lat: {coordinates.Lat}; Lng: {coordinates.Lng}",
+                                         cancellationToken: cts.Token);
+                }
+                catch (WebException ex)//TODO: замінити ексепшин.
+                {
+                    Console.WriteLine(ex.Message);
+                    await botClient.SendTextMessageAsync(chatId: chatId,
+                                                         text: "Unfortunately, you entered the incorrect name of the settlement(",
+                                                         cancellationToken: cts.Token);
+                    await botClient.SendStickerAsync(chatId: chatId,
+                                                     sticker: "https://cdn.tlgrm.app/stickers/ccd/a8d/ccda8d5d-d492-4393-8bb7-e33f77c24907/192/9.webp",
+                                                     cancellationToken: cts.Token);
+                    await botClient.SendTextMessageAsync(chatId: chatId,
+                                     text: "Please try again:)",
+                                     cancellationToken: cts.Token);
+                }
+
+                return;
             }
         }
 
@@ -154,5 +206,32 @@ namespace PracriseProject1
             Console.WriteLine(ErrorMessage);
             return Task.CompletedTask;
         }
+
+        /// <summary>
+        /// Визначення широти і довготи н. п..
+        /// </summary>
+        /// <param name="settlement"></param>
+        private async Task<Task> HandleSettlementCoordinateAsync(string settlement)//TODO: Перевірку вхідних даних
+        {
+
+            string adress = $"https://maps.googleapis.com/maps/api/geocode/json?address={settlement},&key={mapsApiToken}";
+            string source = String.Empty;
+            HttpWebRequest httpWebRequest = (HttpWebRequest)WebRequest.Create(adress);
+            using (HttpWebResponse httpWebResponse = (HttpWebResponse)httpWebRequest.GetResponse())
+            {
+                using (StreamReader reader = new StreamReader(httpWebResponse.GetResponseStream()))
+                {
+                    source = await reader.ReadToEndAsync();
+                }
+            }
+            Console.WriteLine(source);
+            coordinates = new Coordinates(source);
+
+            return Task<Task>.CompletedTask;
+        }
     }
 }
+
+
+
+
