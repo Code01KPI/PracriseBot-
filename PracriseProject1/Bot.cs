@@ -5,7 +5,6 @@ using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 using System.Net;
-using System.Text;
 //using Newtonsoft.Json;
 
 namespace PracriseProject1
@@ -130,6 +129,7 @@ namespace PracriseProject1
                                                      text: "Choose command: /keyboard", //TODO: Доробити обробку команди inline
                                                      cancellationToken: cts.Token);
                 Console.WriteLine($"Bot sent a command list in chat: {chatId}");
+                weatherInfoFlag = false;
                 return;
             }
             else if (message.Text == "/keyboard")
@@ -139,6 +139,7 @@ namespace PracriseProject1
                                                      replyMarkup: keyboard,
                                                      cancellationToken: cts.Token);
                 Console.WriteLine($"Bot sent keyboard for user in chat: {chatId}");
+                weatherInfoFlag = false;
                 return;
             }
 
@@ -149,6 +150,7 @@ namespace PracriseProject1
                                      text: "Choose command: /keyboard", //TODO: Доробити обробку команди inline
                                      cancellationToken: cts.Token);
                 Console.WriteLine($"Bot sent a command list in chat: {chatId}");
+                weatherInfoFlag = false;
                 return;
             }
             else if (message.Text == "Weather info")
@@ -166,12 +168,12 @@ namespace PracriseProject1
                 try
                 {
                     await HandleSettlementCoordinateAsync(settlementName);
+                    if (coordinates.coordinatesFlag)
+                        throw new Exception("There aren't settlement with thats title");
+
                     await botClient.SendTextMessageAsync(chatId: chatId,
                                          text: $"Lat: {coordinates.Lat}; Lng: {coordinates.Lng}",
                                          cancellationToken: cts.Token);
-                    if (coordinates.Lat == String.Empty && coordinates.Lng == String.Empty)
-                        throw new Exception("There aren't settlement with thats title");
-                    weatherInfoFlag = false;
                 }
                 catch (Exception ex)
                 {
@@ -185,7 +187,6 @@ namespace PracriseProject1
                     await botClient.SendTextMessageAsync(chatId: chatId,
                                      text: "Please try again:)",
                                      cancellationToken: cts.Token);
-                    weatherInfoFlag = true;
                 }
                 return;
             }
@@ -242,7 +243,6 @@ namespace PracriseProject1
                     source = await reader.ReadToEndAsync();
                 }
             }
-            Console.WriteLine(source);
             coordinates = new Coordinates(source);
 
             return Task<Task>.CompletedTask;

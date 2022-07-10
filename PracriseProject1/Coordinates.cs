@@ -1,4 +1,4 @@
-﻿using System.Text.RegularExpressions;
+﻿using Newtonsoft.Json;
 
 namespace PracriseProject1
 {
@@ -10,43 +10,75 @@ namespace PracriseProject1
         /// <summary>
         /// Широта.
         /// </summary>
-        public string Lat { get; }
+        public string? Lat { get; }
 
         /// <summary>
         /// Довгота.
         /// </summary>
-        public string Lng { get; }
+        public string? Lng { get; }
 
         /// <summary>
-        /// Регулярка для пошуку широти.
+        /// Повна, форматована адреса.
         /// </summary>
-        private Regex latRegex = new Regex(@".lat. : (\d*.\d*)");
+        public string? fullAdress { get; }
 
         /// <summary>
-        /// Регулярка для пошуку довготи.
+        /// Флажок на випадок якщо відповідь від апі не відповідає формі(некоректно введенна назва н. п.).
         /// </summary>
-        private Regex lngRegex = new Regex(@".lng. : (\d*.\d*)");
+        public bool coordinatesFlag = false;
 
-        public Coordinates(string jsonSource)//TODO: Перевірка вхідних даних. 
+        public Coordinates(string jsonSource)
         {
-            string tmp1 = String.Empty;
-            string tmp2 = String.Empty;
-
-            MatchCollection matches1 = latRegex.Matches(jsonSource);
-            if (matches1.Count >= 3)
+            try
             {
-                tmp1 = matches1[2].Value;
-                tmp1 = tmp1.Replace("\"lat\" : ", "");
+                var obj = JsonConvert.DeserializeObject<ResponceSource>(jsonSource);
+                if (obj?.results.Count == 0)
+                    coordinatesFlag = true;
+                else
+                {
+                    fullAdress = obj?.results[0]?.formatted_address;
+                    Lat = obj?.results[0]?.geometry?.location?.lat;
+                    Lng = obj?.results[0]?.geometry?.location?.lng;
+                }
             }
-            Lat = tmp1;
-
-            MatchCollection matches2 = lngRegex.Matches(jsonSource);
-            if (matches2.Count >= 3)
+            catch (JsonSerializationException ex)
             {
-                tmp2 = matches2[2].Value;
-                tmp2 = tmp2.Replace("\"lng\" : ", "");
+                Console.WriteLine(ex.Message);
             }
-            Lng = tmp2;
         }
     }
 }
+
+/// <summary>
+/// Клас для зберігання двох основних полів з json.
+/// </summary>
+class ResponceSource
+{
+    public List<ResultsComponent> results = new List<ResultsComponent>();
+
+    public string? status;
+}
+
+/// <summary>
+/// Клас який описує повну адресу і координати.
+/// </summary>
+/// <param name="formatted_address"></param>
+/// <param name="geometry"></param>
+record class ResultsComponent(string formatted_address, Geometry geometry);
+
+/// <summary>
+/// Клас для опису повних координат.
+/// </summary>
+/// <param name="location"></param>
+record class Geometry(Location location);
+
+/// <summary>
+/// Широта і довгота з JSON geometry.
+/// </summary>
+/// <param name="lat"></param>
+/// <param name="lng"></param>
+record class Location(string lat, string lng);
+
+
+
+
