@@ -5,7 +5,6 @@ using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 using System.Net;
-//using Newtonsoft.Json;
 
 namespace PracriseProject1
 {
@@ -36,9 +35,9 @@ namespace PracriseProject1
         private Coordinates coordinates { get; set; }
 
         /// <summary>
-        /// Флажок команди weather info.
+        /// Флажок для уточнення назви н. п..
         /// </summary>
-        private static bool weatherInfoFlag = false;
+        private static bool settlementFlag = false;
 
         /// <summary>
         /// Налаштування отримання оновлень.
@@ -53,7 +52,7 @@ namespace PracriseProject1
         /// </summary>
         private ReplyKeyboardMarkup keyboard = new(new []
         {
-            new KeyboardButton[] { "Weather info", "Initial menu"}
+            new KeyboardButton[] { "Weather info" }
         })
         {
             ResizeKeyboard = true
@@ -84,7 +83,7 @@ namespace PracriseProject1
                                   cancellationToken: cts.Token);
 
             var me = await client.GetMeAsync();
-            Console.WriteLine($"Bot {me.Username} started work");
+            Console.WriteLine($"Bot {me.FirstName} started work");
 
             Console.ReadLine();
             cts.Cancel();
@@ -126,54 +125,43 @@ namespace PracriseProject1
             if (message.Text == "/start")
             {
                 await botClient.SendTextMessageAsync(chatId: chatId,
-                                                     text: "Choose command: /keyboard", //TODO: Доробити обробку команди inline
-                                                     cancellationToken: cts.Token);
-                Console.WriteLine($"Bot sent a command list in chat: {chatId}");
-                weatherInfoFlag = false;
-                return;
-            }
-            else if (message.Text == "/keyboard")
-            {
-                await botClient.SendTextMessageAsync(chatId: chatId,
-                                                     text: "Choose command please:",
+                                                     text: "This bot can give you the weather in your city for the day. Just follow the instructions!", 
                                                      replyMarkup: keyboard,
                                                      cancellationToken: cts.Token);
-                Console.WriteLine($"Bot sent keyboard for user in chat: {chatId}");
-                weatherInfoFlag = false;
+                Console.WriteLine($"Bot sent a command list in chat: {chatId}");
                 return;
             }
 
-            if (message.Text == "Initial menu")
+            if (message.Text == "Weather info")
             {
-                Console.WriteLine($"Bot has restarted its work");
-                await botClient.SendTextMessageAsync(chatId: chatId,
-                                     text: "Choose command: /keyboard", //TODO: Доробити обробку команди inline
-                                     cancellationToken: cts.Token);
-                Console.WriteLine($"Bot sent a command list in chat: {chatId}");
-                weatherInfoFlag = false;
-                return;
-            }
-            else if (message.Text == "Weather info")
-            {
+                Console.WriteLine("User requested weather data.");
                 await botClient.SendTextMessageAsync(chatId: chatId,
                                                      text: "Please enter the name of your settlement:",
                                                      cancellationToken: cts.Token);
-                weatherInfoFlag = true;
+                settlementFlag = true;
                 return;
             }
-            else if (weatherInfoFlag == true && message.Text is not null)
+            else if (settlementFlag == true && message.Text is not null)
             {
                 settlementName = message.Text;
 
                 try
                 {
                     await HandleSettlementCoordinateAsync(settlementName);
+                    if (settlementFlag)
+                        await botClient.SendTextMessageAsync(chatId: chatId,
+                                                         text: $"<b>Do you mean this settlement? -  {coordinates.fullAdress}</b>\nIf not, please clarify your request (add the name of the region/country, etc.)",
+                                                         parseMode: ParseMode.Html,
+                                                         replyToMessageId: message.MessageId,
+                                                         replyMarkup: new InlineKeyboardMarkup(
+                                                         new[]
+                                                         {
+                                                             InlineKeyboardButton.WithCallbackData("Yes", "1"),
+                                                         }),
+                                                         cancellationToken: cts.Token); 
                     if (coordinates.coordinatesFlag)
                         throw new Exception("There aren't settlement with thats title");
 
-                    await botClient.SendTextMessageAsync(chatId: chatId,
-                                         text: $"Lat: {coordinates.Lat}; Lng: {coordinates.Lng}",
-                                         cancellationToken: cts.Token);
                 }
                 catch (Exception ex)
                 {
@@ -200,9 +188,22 @@ namespace PracriseProject1
             }
         }
 
+        /// <summary>
+        /// Обробник клавіатури inline.
+        /// </summary>
+        /// <param name="botClient"></param>
+        /// <param name="callbackQuery"></param>
+        /// <returns></returns>
         private async Task HandleCallbackQueryAsync(ITelegramBotClient botClient, CallbackQuery callbackQuery)
         {
-
+            if (callbackQuery.Data == "1")
+            {
+                await botClient.SendTextMessageAsync(chatId: callbackQuery.Message.Chat.Id,
+                     text: $"Lat: {coordinates.Lat}; Lng: {coordinates.Lng}",
+                     cancellationToken: cts.Token);
+                settlementFlag = false;
+                return;
+            }
         }
 
         /// <summary>
@@ -249,7 +250,3 @@ namespace PracriseProject1
         }
     }
 }
-
-
-
-
