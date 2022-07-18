@@ -21,6 +21,11 @@ namespace PracriseProject1
         private string mapsApiToken { get; }
 
         /// <summary>
+        /// Токен api OpenWeather.
+        /// </summary>
+        private string weatherApiToken { get; }
+
+        /// <summary>
         /// Токен відміни.
         /// </summary>
         private CancellationTokenSource cts = new CancellationTokenSource();
@@ -33,6 +38,8 @@ namespace PracriseProject1
         public string settlementName { get; private set; }
 
         private Coordinates coordinates { get; set; }
+
+        private WeatherData weatherData { get; set; }
 
         /// <summary>
         /// Флажок для уточнення назви н. п..
@@ -65,6 +72,7 @@ namespace PracriseProject1
                 string[] buffer = sr.ReadToEnd().Split('\n');
                 token = buffer[0].Trim();
                 mapsApiToken = buffer[1].Trim();
+                weatherApiToken = buffer[2].Trim();
             }
 
             client = new TelegramBotClient(token);
@@ -81,7 +89,6 @@ namespace PracriseProject1
                                   pollingErrorHandler: HandlePollingErrorAsync,
                                   receiverOptions: receiverOptions,
                                   cancellationToken: cts.Token);
-
             var me = await client.GetMeAsync();
             Console.WriteLine($"Bot {me.FirstName} started work");
 
@@ -141,7 +148,7 @@ namespace PracriseProject1
                 settlementFlag = true;
                 return;
             }
-            else if (settlementFlag == true && message.Text is not null)
+            else if (settlementFlag == true && message.Text is not null /*&& string.IsNullOrWhiteSpace(message.Text)*/) // TODO: Пофіксити
             {
                 settlementName = message.Text;
 
@@ -150,15 +157,15 @@ namespace PracriseProject1
                     await HandleSettlementCoordinateAsync(settlementName);
                     if (settlementFlag)
                         await botClient.SendTextMessageAsync(chatId: chatId,
-                                                         text: $"<b>Do you mean this settlement? -  {coordinates.fullAdress}</b>\nIf not, please clarify your request (add the name of the region/country, etc.)",
-                                                         parseMode: ParseMode.Html,
-                                                         replyToMessageId: message.MessageId,
-                                                         replyMarkup: new InlineKeyboardMarkup(
-                                                         new[]
-                                                         {
-                                                             InlineKeyboardButton.WithCallbackData("Yes", "1"),
-                                                         }),
-                                                         cancellationToken: cts.Token); 
+                                                             text: $"<b>Do you mean this settlement? -  {coordinates.fullAdress}</b>\nIf not, please clarify your request (add the name of the region/country, etc.)",
+                                                             parseMode: ParseMode.Html,
+                                                             replyToMessageId: message.MessageId,
+                                                             replyMarkup: new InlineKeyboardMarkup(
+                                                             new[]
+                                                             {
+                                                                 InlineKeyboardButton.WithCallbackData("Yes", "1"),
+                                                             }),
+                                                             cancellationToken: cts.Token); 
                     if (coordinates.coordinatesFlag)
                         throw new Exception("There aren't settlement with thats title");
 
@@ -196,14 +203,34 @@ namespace PracriseProject1
         /// <returns></returns>
         private async Task HandleCallbackQueryAsync(ITelegramBotClient botClient, CallbackQuery callbackQuery)
         {
-            if (callbackQuery.Data == "1")
+            try
             {
-                await botClient.SendTextMessageAsync(chatId: callbackQuery.Message.Chat.Id,
-                     text: $"Lat: {coordinates.Lat}; Lng: {coordinates.Lng}",
-                     cancellationToken: cts.Token);
-                settlementFlag = false;
-                return;
+                if (callbackQuery?.Data == "1")
+                {
+                    await HandleWeatherDataAsync(botClient, callbackQuery?.Message?.Chat.Id);
+                    await botClient.SendTextMessageAsync(chatId: callbackQuery?.Message?.Chat.Id,
+                                     text: "<b>Select a time period:</b>",
+                                     parseMode: ParseMode.Html,
+                                     replyMarkup: new InlineKeyboardMarkup(
+                                     new[]
+                                     {
+                                            InlineKeyboardButton.WithCallbackData("24 hours", "24"),
+                                            InlineKeyboardButton.WithCallbackData("2 days", "48"),
+                                            InlineKeyboardButton.WithCallbackData("5 days", "120")
+                                     }),
+                                     cancellationToken: cts.Token);
+                    settlementFlag = false;
+                }
+                else if (callbackQuery?.Data == "24")
+                {
+                    await PrintWeatherDataAsync(botClient, callbackQuery?.Message?.Chat.Id, 8);
+                }
             }
+            catch (NullReferenceException ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+            return;
         }
 
         /// <summary>
@@ -224,29 +251,98 @@ namespace PracriseProject1
             Console.WriteLine(ErrorMessage);
             return Task.CompletedTask;
         }
-
+        
         /// <summary>
         /// Визначення широти і довготи н. п..
         /// </summary>
         /// <param name="settlement"></param>
-        private async Task<Task> HandleSettlementCoordinateAsync(string settlement)
+        private async Task HandleSettlementCoordinateAsync(string settlement)
         {
-            if(settlement == null)
-                throw new ArgumentNullException("The name of the settlement cannot be equal to null", nameof(settlement));
+            string url = $"https://maps.googleapis.com/maps/api/geocode/json?address={settlement},&key={mapsApiToken}";
+            string coordinatesDataJson = await ReadJSONResponse(url);
+            coordinates = new Coordinates(coordinatesDataJson);
 
-            string adress = $"https://maps.googleapis.com/maps/api/geocode/json?address={settlement},&key={mapsApiToken}";
-            string source = String.Empty;
-            HttpWebRequest httpWebRequest = (HttpWebRequest)WebRequest.Create(adress);
+            return;
+        }
+
+        /// <summary>
+        /// Отримання даних про погоду.
+        /// </summary>
+        /// <returns></returns>
+        private async Task HandleWeatherDataAsync(ITelegramBotClient botClient, long? chatId)
+        {
+            string url = $"https://api.openweathermap.org/data/2.5/forecast?lat={coordinates.Lat}&lon={coordinates.Lng}&units=metric&lang=ua&appid={weatherApiToken}";
+            string weatherDataJson = String.Empty;
+
+            try
+            {
+                weatherDataJson = await ReadJSONResponse(url);
+                try
+                {
+                    weatherData = new WeatherData(weatherDataJson);
+                }
+                catch (ArgumentNullException ex)
+                {
+                    Console.WriteLine(ex.Message);
+                    await botClient.SendTextMessageAsync(chatId: chatId,
+                                                         text: "Sorry, but our weather service is currently down, so we don't have any weather data",
+                                                         cancellationToken: cts.Token);
+                }
+            }
+            catch (WebException ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+            return;
+        }
+
+        /// <summary>
+        /// Зчитування JSON відповіді
+        /// </summary>
+        /// <param name="url"></param>
+        /// <returns></returns>
+        private async Task<string> ReadJSONResponse(string url)
+        {
+            HttpWebRequest httpWebRequest = (HttpWebRequest)WebRequest.Create(url);
             using (HttpWebResponse httpWebResponse = (HttpWebResponse)httpWebRequest.GetResponse())
             {
                 using (StreamReader reader = new StreamReader(httpWebResponse.GetResponseStream()))
                 {
-                    source = await reader.ReadToEndAsync();
+                    string dataJSON = await reader.ReadToEndAsync();
+                    return dataJSON;
                 }
             }
-            coordinates = new Coordinates(source);
+        }
 
-            return Task<Task>.CompletedTask;
+        /// <summary>
+        /// Вивід інформації про погоду.
+        /// </summary>
+        /// <returns></returns>
+        private async Task PrintWeatherDataAsync(ITelegramBotClient botClient, long? chatId, int timeCount)
+        {
+            if(weatherData == null)
+            {
+                Console.WriteLine("Error - weather data didn't parse");
+                await botClient.SendTextMessageAsync(chatId: chatId,
+                                     text: "Unfortunately, our service cannot receive a response from the weather API.",
+                                     cancellationToken: cts.Token);
+            }
+            for(int i = 0; i < timeCount; i += 2)
+            {
+                await botClient.SendTextMessageAsync(chatId: chatId,
+                                                     text: $"<b>Time: {weatherData?.data.list[i].dt_txt.Remove(16)}</b>" +
+                                                     $"\nTemperature: {weatherData?.data.list[i].main.temp} C Feels like: {weatherData?.data.list[i].main.feels_like} C" +
+                                                     $"\nPressure: {weatherData?.data.list[i].main.pressure}" +
+                                                     $"\nHumidity: {weatherData?.data.list[i].main.humidity}" +
+                                                     $"\nWeather: {weatherData?.data.list[i].weather[0].main}" +
+                                                     $"\nClouds: {weatherData?.data.list[i].clouds.all} %" +
+                                                     $"\nWind speed: {weatherData?.data.list[i].wind.speed} Wind gust: {weatherData?.data.list[i].wind.gust}",
+                                                     parseMode: ParseMode.Html,
+                                                     cancellationToken: cts.Token);
+            }
+            Console.WriteLine($"Received weather data in chat: {chatId}");
         }
     }
 }
+
+
