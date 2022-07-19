@@ -6,6 +6,7 @@ using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 using System.Net;
 using System.Text;
+using System.Globalization;
 
 namespace PracriseProject1
 {
@@ -52,7 +53,7 @@ namespace PracriseProject1
             ["Rain"] = "\U0001F327",
             ["Snow"] = "\U0001F328",
             ["Mist"] = "\U0001F32B",
-            ["Clear"] = "\U00002600", //TODO: доробити.
+            ["Clear"] = "\U00002600", 
             ["ClearNight"] = "\U0001F311",
             ["Clouds"] = "\U00002601"
         };
@@ -346,6 +347,7 @@ namespace PracriseProject1
             }
             for (int i = 0; i < timeCount; i += 2)
             {
+                CultureInfo.CurrentCulture = new CultureInfo("en-US", false);// TODO: добавити повноцінну локалізацію
                 await botClient.SendTextMessageAsync(chatId: chatId,
                                                      text: $"<b>Time: {weatherData?.data.list[i].dt_txt:m} {weatherData?.data.list[i].dt_txt:t}</b>" +
                                                      $"\n\U0001F321Temperature: {weatherData?.data.list[i].main.temp} \U000000B0C Feels like: {weatherData?.data.list[i].main.feels_like} \U000000B0C" +
@@ -355,7 +357,6 @@ namespace PracriseProject1
                                                      $"\n\U0001F32AWind speed: {weatherData?.data.list[i].wind.speed}m/s Wind gust: {weatherData?.data.list[i].wind.gust}m/s",
                                                      parseMode: ParseMode.Html,
                                                      cancellationToken: cts.Token);
-
             }
             Console.WriteLine($"Received weather data in chat: {chatId}");
         }
