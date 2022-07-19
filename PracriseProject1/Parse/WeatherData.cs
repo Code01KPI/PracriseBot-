@@ -42,7 +42,7 @@ namespace PracriseProject1
     /// <param name="wind"></param>
     /// <param name="visibility"></param>
     /// <param name="dt_txt"></param>
-    public record class Info(TempAndPressure main, List<Weather> weather, Clouds clouds, Wind wind, int visibility, string dt_txt);
+    public record class Info(TempAndPressure main, List<Weather> weather, Clouds clouds, Wind wind, int visibility, DateTime dt_txt);
 
     /// <summary>
     /// Температура і тиск.

@@ -5,6 +5,7 @@ using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 using System.Net;
+using System.Text;
 
 namespace PracriseProject1
 {
@@ -42,6 +43,21 @@ namespace PracriseProject1
         private WeatherData weatherData { get; set; }
 
         /// <summary>
+        /// Тип погодних умов.
+        /// </summary>
+        private Dictionary<string, string> WeatherType = new Dictionary<string, string>()
+        {
+            ["Thunderstorm"] = "\U000026C8",
+            ["Drizzle"] = "\U0001F327",
+            ["Rain"] = "\U0001F327",
+            ["Snow"] = "\U0001F328",
+            ["Mist"] = "\U0001F32B",
+            ["Clear"] = "\U00002600", //TODO: доробити.
+            ["ClearNight"] = "\U0001F311",
+            ["Clouds"] = "\U00002601"
+        };
+
+        /// <summary>
         /// Флажок для уточнення назви н. п..
         /// </summary>
         private static bool settlementFlag = false;
@@ -57,7 +73,7 @@ namespace PracriseProject1
         /// <summary>
         /// Клавіатура бота.
         /// </summary>
-        private ReplyKeyboardMarkup keyboard = new(new []
+        private ReplyKeyboardMarkup keyboard = new(new[]
         {
             new KeyboardButton[] { "Weather info" }
         })
@@ -96,7 +112,7 @@ namespace PracriseProject1
             cts.Cancel();
         }
 
-        
+
 
         /// <summary>
         /// Обробка оновлень.
@@ -117,7 +133,7 @@ namespace PracriseProject1
             {
                 await HandleCallbackQueryAsync(botClient, update.CallbackQuery);
                 return;
-            }               
+            }
         }
 
         /// <summary>
@@ -132,7 +148,7 @@ namespace PracriseProject1
             if (message.Text == "/start")
             {
                 await botClient.SendTextMessageAsync(chatId: chatId,
-                                                     text: "This bot can give you the weather in your city for the day. Just follow the instructions!", 
+                                                     text: "This bot can give you the weather in your city for the day. Just follow the instructions!",
                                                      replyMarkup: keyboard,
                                                      cancellationToken: cts.Token);
                 Console.WriteLine($"Bot sent a command list in chat: {chatId}");
@@ -165,10 +181,9 @@ namespace PracriseProject1
                                                              {
                                                                  InlineKeyboardButton.WithCallbackData("Yes", "1"),
                                                              }),
-                                                             cancellationToken: cts.Token); 
+                                                             cancellationToken: cts.Token);
                     if (coordinates.coordinatesFlag)
                         throw new Exception("There aren't settlement with thats title");
-
                 }
                 catch (Exception ex)
                 {
@@ -222,9 +237,11 @@ namespace PracriseProject1
                     settlementFlag = false;
                 }
                 else if (callbackQuery?.Data == "24")
-                {
                     await PrintWeatherDataAsync(botClient, callbackQuery?.Message?.Chat.Id, 8);
-                }
+                else if (callbackQuery?.Data == "48")
+                    await PrintWeatherDataAsync(botClient, callbackQuery?.Message?.Chat.Id, 16);
+                else if (callbackQuery?.Data == "120")
+                    await PrintWeatherDataAsync(botClient, callbackQuery?.Message?.Chat.Id, 40);
             }
             catch (NullReferenceException ex)
             {
@@ -251,7 +268,7 @@ namespace PracriseProject1
             Console.WriteLine(ErrorMessage);
             return Task.CompletedTask;
         }
-        
+
         /// <summary>
         /// Визначення широти і довготи н. п..
         /// </summary>
@@ -271,7 +288,7 @@ namespace PracriseProject1
         /// <returns></returns>
         private async Task HandleWeatherDataAsync(ITelegramBotClient botClient, long? chatId)
         {
-            string url = $"https://api.openweathermap.org/data/2.5/forecast?lat={coordinates.Lat}&lon={coordinates.Lng}&units=metric&lang=ua&appid={weatherApiToken}";
+            string url = $"https://api.openweathermap.org/data/2.5/forecast?lat={coordinates.Lat}&lon={coordinates.Lng}&units=metric&lang=en&appid={weatherApiToken}";
             string weatherDataJson = String.Empty;
 
             try
@@ -320,27 +337,42 @@ namespace PracriseProject1
         /// <returns></returns>
         private async Task PrintWeatherDataAsync(ITelegramBotClient botClient, long? chatId, int timeCount)
         {
-            if(weatherData == null)
+            if (weatherData == null)
             {
                 Console.WriteLine("Error - weather data didn't parse");
                 await botClient.SendTextMessageAsync(chatId: chatId,
                                      text: "Unfortunately, our service cannot receive a response from the weather API.",
                                      cancellationToken: cts.Token);
             }
-            for(int i = 0; i < timeCount; i += 2)
+            for (int i = 0; i < timeCount; i += 2)
             {
                 await botClient.SendTextMessageAsync(chatId: chatId,
-                                                     text: $"<b>Time: {weatherData?.data.list[i].dt_txt.Remove(16)}</b>" +
-                                                     $"\nTemperature: {weatherData?.data.list[i].main.temp} C Feels like: {weatherData?.data.list[i].main.feels_like} C" +
-                                                     $"\nPressure: {weatherData?.data.list[i].main.pressure}" +
-                                                     $"\nHumidity: {weatherData?.data.list[i].main.humidity}" +
-                                                     $"\nWeather: {weatherData?.data.list[i].weather[0].main}" +
-                                                     $"\nClouds: {weatherData?.data.list[i].clouds.all} %" +
-                                                     $"\nWind speed: {weatherData?.data.list[i].wind.speed} Wind gust: {weatherData?.data.list[i].wind.gust}",
+                                                     text: $"<b>Time: {weatherData?.data.list[i].dt_txt:m} {weatherData?.data.list[i].dt_txt:t}</b>" +
+                                                     $"\n\U0001F321Temperature: {weatherData?.data.list[i].main.temp} \U000000B0C Feels like: {weatherData?.data.list[i].main.feels_like} \U000000B0C" +
+                                                     $"\n\U0001F62EPressure: {weatherData?.data.list[i].main.pressure}hPa" +
+                                                     $"\n\U0001F4A6Humidity: {weatherData?.data.list[i].main.humidity}%" +
+                                                     $"\n\U00002602Weather: {weatherData?.data.list[i].weather[0].description} {GetWeatherEmoji(weatherData?.data.list[i].weather[0].main, weatherData?.data.list[i].dt_txt)}" +
+                                                     $"\n\U0001F32AWind speed: {weatherData?.data.list[i].wind.speed}m/s Wind gust: {weatherData?.data.list[i].wind.gust}m/s",
                                                      parseMode: ParseMode.Html,
                                                      cancellationToken: cts.Token);
+
             }
             Console.WriteLine($"Received weather data in chat: {chatId}");
+        }
+
+        /// <summary>
+        /// Метод для визначення потрібного емоджі погоди.
+        /// </summary>
+        /// <param name="weatherDescription"></param>
+        /// <returns></returns>
+        private string GetWeatherEmoji(string weatherDescription, DateTime? time)
+        {
+            if (weatherDescription == "Clear" && (time?.Hour >= 21 || time?.Hour <= 6)) 
+                return WeatherType["ClearNight"];
+            else if (WeatherType.ContainsKey(weatherDescription))
+                return WeatherType[weatherDescription];
+            else
+                return "\U0001F32B";
         }
     }
 }
