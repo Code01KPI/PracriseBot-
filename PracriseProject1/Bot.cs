@@ -5,7 +5,6 @@ using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 using System.Net;
-using System.Text;
 using System.Globalization;
 
 namespace PracriseProject1
@@ -113,8 +112,6 @@ namespace PracriseProject1
             cts.Cancel();
         }
 
-
-
         /// <summary>
         /// Обробка оновлень.
         /// </summary>
@@ -124,16 +121,25 @@ namespace PracriseProject1
         /// <returns></returns>
         private async Task HandleUpdatesAsync(ITelegramBotClient botClient, Update update, CancellationToken cancelletionToken)
         {
-            if (update.Type == UpdateType.Message && update.Message.Text is not null)
+            try
             {
-                await HandleMessageAsync(botClient, update.Message);
-                return;
-            }
+                if (update.Type == UpdateType.Message && update.Message.Text is not null)
+                {
+                    await HandleMessageAsync(botClient, update.Message);
+                    return;
+                }
 
-            if (update.Type == UpdateType.CallbackQuery)
+
+
+                if (update.Type == UpdateType.CallbackQuery)
+                {
+                    await HandleCallbackQueryAsync(botClient, update.CallbackQuery);
+                    return;
+                }
+            }
+            catch (ApiRequestException apiRequestException)
             {
-                await HandleCallbackQueryAsync(botClient, update.CallbackQuery);
-                return;
+                Console.WriteLine($"Telegram API Error:\n[{apiRequestException.ErrorCode}]\n{apiRequestException.Message}");
             }
         }
 
