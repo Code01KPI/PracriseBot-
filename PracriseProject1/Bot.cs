@@ -38,6 +38,11 @@ namespace PracriseProject1
         /// </summary>
         public string settlementName { get; private set; }
 
+        /// <summary>
+        /// Словник який виконує роль архіву запитів погоди по н. п..
+        /// </summary>
+        private Dictionary<string, long?> settlementArchive = new Dictionary<string, long?>(); 
+
         private Coordinates coordinates { get; set; }
 
         private WeatherData weatherData { get; set; }
@@ -75,7 +80,8 @@ namespace PracriseProject1
         /// </summary>
         private ReplyKeyboardMarkup keyboard = new(new[]
         {
-            new KeyboardButton[] { "Weather info" }
+            new KeyboardButton[] { "Weather info" },
+            new KeyboardButton[] { "Help" }
         })
         {
             ResizeKeyboard = true
@@ -152,17 +158,17 @@ namespace PracriseProject1
         private async Task HandleMessageAsync(ITelegramBotClient botClient, Message message)
         {
             var chatId = message.Chat.Id;
-            if (message.Text == "/start")
+            if (message?.Text == "/start")
             {
                 await botClient.SendTextMessageAsync(chatId: chatId,
-                                                     text: "This bot can give you the weather in your city for the day. Just follow the instructions!",
+                                                     text: "Choose command: ",
                                                      replyMarkup: keyboard,
                                                      cancellationToken: cts.Token);
                 Console.WriteLine($"Bot sent a command list in chat: {chatId}");
                 return;
             }
 
-            if (message.Text == "Weather info")
+            if (message?.Text == "Weather info")
             {
                 Console.WriteLine("User requested weather data.");
                 await botClient.SendTextMessageAsync(chatId: chatId,
@@ -171,12 +177,38 @@ namespace PracriseProject1
                 settlementFlag = true;
                 return;
             }
-            else if (settlementFlag == true && message.Text is not null /*&& string.IsNullOrWhiteSpace(message.Text)*/) // TODO: Пофіксити
+            else if (message?.Text == "Help")
             {
-                settlementName = message.Text;
-
+                Console.WriteLine("User requested help instructions.");
+                await botClient.SendTextMessageAsync(chatId: chatId,
+                                                     parseMode: ParseMode.Html,
+                                                     text: "<b>If you do not receive weather data or if it is incorrect\n</b>" +
+                                                     "- Check the correctness of entering the name of the settlement;\n" +
+                                                     "- Try to clarify your request (For example: Kyiv - Kyiv Kyiv region Ukraine);\n" +
+                                                     "<b>If the bot does not respond to commands or freezes</b>\n" +
+                                                     "- Try restarting the bot;\n" +
+                                                     "- Report it to this account https://t.me/codic_bot01, which is an improvised technical support;",
+                                                     cancellationToken: cts.Token);
+            }
+            else if (settlementFlag == true)
+            {
                 try
                 {
+                    if (!string.IsNullOrWhiteSpace(message.Text)) //TODO: доробити
+                    {
+                        settlementName = message.Text;
+                        if (settlementArchive.ContainsKey(settlementName) && settlementArchive[settlementName] == chatId)
+                        {
+
+                        }
+                        else
+                        {
+                            settlementArchive[settlementName] = chatId;
+                        }
+                    }
+                    else
+                        throw new ArgumentException("Invalid name of settlement!");
+                    
                     await HandleSettlementCoordinateAsync(settlementName);
                     if (settlementFlag)
                         await botClient.SendTextMessageAsync(chatId: chatId,
@@ -355,7 +387,7 @@ namespace PracriseProject1
             {
                 CultureInfo.CurrentCulture = new CultureInfo("en-US", false);// TODO: добавити повноцінну локалізацію
                 await botClient.SendTextMessageAsync(chatId: chatId,
-                                                     text: $"<b>Time: {weatherData?.data.list[i].dt_txt:m} {weatherData?.data.list[i].dt_txt:t}</b>" +
+                                                     text: $"<b>Time: {weatherData?.data.list[i].dt_txt:m} {weatherData?.data.list[i].dt_txt:t}</b>" + // TODO: переробити вивід
                                                      $"\n\U0001F321Temperature: {weatherData?.data.list[i].main.temp} \U000000B0C Feels like: {weatherData?.data.list[i].main.feels_like} \U000000B0C" +
                                                      $"\n\U0001F62EPressure: {weatherData?.data.list[i].main.pressure}hPa" +
                                                      $"\n\U0001F4A6Humidity: {weatherData?.data.list[i].main.humidity}%" +
