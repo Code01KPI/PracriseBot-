@@ -89,13 +89,13 @@ namespace PracriseProject1
 
         public Bot()
         {
-            using (StreamReader sr = new StreamReader("tokens.txt"))
+            /*using (StreamReader sr = new StreamReader("tokens.txt"))
             {
                 string[] buffer = sr.ReadToEnd().Split('\n');
                 token = buffer[0].Trim();
                 mapsApiToken = buffer[1].Trim();
                 weatherApiToken = buffer[2].Trim();
-            }
+            }*/
 
             client = new TelegramBotClient(token);
             Console.WriteLine("Bot has been created");
