@@ -14,17 +14,17 @@ namespace PracriseProject1
         /// <summary>
         /// Токен.
         /// </summary>
-        private string token { get; }
+        private readonly string token = "5567347333:AAEGUpFG-H7gpiFwZlUGfBF-IaKlyRDGcpc";
 
         /// <summary>
         /// Токен api google maps.
         /// </summary>
-        private string mapsApiToken { get; }
+        private readonly string mapsApiToken = "AIzaSyAbNhd1pb7Q492VQRZkFRXUXOk9_9kck90";
 
         /// <summary>
         /// Токен api OpenWeather.
         /// </summary>
-        private string weatherApiToken { get; }
+        private readonly string weatherApiToken = "9020f1267aa0291e66a284baf9ca8bd8";
 
         /// <summary>
         /// Токен відміни.
