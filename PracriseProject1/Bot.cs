@@ -31,7 +31,7 @@ namespace PracriseProject1
         /// </summary>
         private CancellationTokenSource cts = new CancellationTokenSource();
 
-        private TelegramBotClient client;
+        private TelegramBotClient? client = null!;
 
         /// <summary>
         /// Назва н. п. яка отримана від користувача.
@@ -98,7 +98,10 @@ namespace PracriseProject1
             }*/
 
             client = new TelegramBotClient(token);
-            Console.WriteLine("Bot has been created");
+            if (client is not null)
+                Console.WriteLine("Bot has been created");
+            else
+                throw new Exception("Bot hasn't been created"); // TODO: Добавити обробку даного ексепшина.
         }
 
         /// <summary>
@@ -184,7 +187,7 @@ namespace PracriseProject1
                                                      parseMode: ParseMode.Html,
                                                      text: "<b>If you do not receive weather data or if it is incorrect\n</b>" +
                                                      "- Check the correctness of entering the name of the settlement;\n" +
-                                                     "- Try to clarify your request (For example: Kyiv - Kyiv Kyiv region Ukraine);\n" +
+                                                     "- Try to clarify your request (For example: Kyiv - Kyiv, Kyiv region, Ukraine);\n" +
                                                      "<b>If the bot does not respond to commands or freezes</b>\n" +
                                                      "- Try restarting the bot;\n" +
                                                      "- Report it to this account https://t.me/codic_bot01, which is an improvised technical support;",
