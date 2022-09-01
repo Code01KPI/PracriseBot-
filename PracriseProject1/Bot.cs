@@ -98,6 +98,7 @@ namespace PracriseProject1
             }*/
 
             client = new TelegramBotClient(token);
+            
             if (client is not null)
                 Console.WriteLine("Bot has been created");
             else
