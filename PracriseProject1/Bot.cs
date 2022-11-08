@@ -14,12 +14,12 @@ namespace PracriseProject1
         /// <summary>
         /// Токен.
         /// </summary>
-        private readonly string token = "5567347333:AAEGUpFG-H7gpiFwZlUGfBF-IaKlyRDGcpc";
+        private readonly string token = "5567347333:AAEGUpFG-H7gpiFwZlUGfBF-IaKlyRDGcpc"; // TODO: Додати шифрування для апі ключів!
 
         /// <summary>
         /// Токен api google maps.
         /// </summary>
-        private readonly string mapsApiToken = "AIzaSyAbNhd1pb7Q492VQRZkFRXUXOk9_9kck90";
+        private readonly string mapsApiToken = "AIzaSyBVRDmKJ942ZQFIP9o3r3QH4a0X6QA1JlQ";
 
         /// <summary>
         /// Токен api OpenWeather.
@@ -97,12 +97,13 @@ namespace PracriseProject1
                 weatherApiToken = buffer[2].Trim();
             }*/
 
+
             client = new TelegramBotClient(token);
             
             if (client is not null)
                 Console.WriteLine("Bot has been created");
             else
-                throw new Exception("Bot hasn't been created"); // TODO: Добавити обробку даного ексепшина.
+                throw new Exception("Bot hasn't been created");
         }
 
         /// <summary>
@@ -200,12 +201,8 @@ namespace PracriseProject1
                 {
                     if (!string.IsNullOrWhiteSpace(message.Text)) //TODO: доробити
                     {
-                        settlementName = message.Text;
-                        if (settlementArchive.ContainsKey(settlementName) && settlementArchive[settlementName] == chatId)
-                        {
-
-                        }
-                        else
+                        settlementName = message.Text; // TODO: пофіксити!!! 
+                        if (!settlementArchive.ContainsKey(settlementName) || !(settlementArchive[settlementName] == chatId))
                         {
                             settlementArchive[settlementName] = chatId;
                         }
